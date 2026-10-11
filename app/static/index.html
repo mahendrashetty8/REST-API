@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow — Task Management & Productivity REST API</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            darkBg: '#090D16',
+            darkCard: '#111827',
+            darkCardBorder: '#1F2937',
+            darkInput: '#1E293B',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #090D16;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #111827;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="border-b border-slate-800 bg-[#0c1222]/90 backdrop-blur sticky top-0 z-40 px-4 sm:px-8 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <!-- Brand & Name -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/25 text-base tracking-wider">
+          TF
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 id="appHeaderTitle" class="text-lg font-bold text-white tracking-tight leading-none">TaskFlow</h1>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v1.0.0</span>
+            <span id="apiStatusBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> API Online
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Task Management &amp; Productivity REST API</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-3">
+        <button id="renameAppBtn" title="Customize App Name" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+          <span>Rename</span>
+        </button>
+
+        <a href="/docs" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 transition shadow-sm">
+          <i data-lucide="file-code" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span>OpenAPI Docs</span>
+        </a>
+
+        <button id="openCreateModalBtn" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 active:translate-y-0">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>+ Create Task</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-6 space-y-6">
+
+    <!-- 1. METRICS ROW -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Total Tasks -->
+      <div class="bg-[#111827] border border-slate-800/80 rounded-xl p-4 sm:p-5 relative overflow-hidden shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-400 tracking-wider uppercase">
+          <span>Total Tasks</span>
+          <i data-lucide="clipboard-list" class="w-4 h-4 text-indigo-400"></i>
+        </div>
+        <div class="mt-3 text-3xl font-extrabold text-white" id="statTotal">0</div>
+        <div class="mt-2 text-[11px] text-slate-400">All registered tasks in SQLite</div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+      </div>
+
+      <!-- Completed Tasks -->
+      <div class="bg-[#111827] border border-slate-800/80 rounded-xl p-4 sm:p-5 relative overflow-hidden shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-400 tracking-wider uppercase">
+          <span>Completed</span>
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="mt-3 text-3xl font-extrabold text-emerald-400" id="statCompleted">0</div>
+        <div class="mt-2 text-[11px] text-slate-400" id="statCompletedSub">0% completion rate</div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
+      </div>
+
+      <!-- Pending Tasks -->
+      <div class="bg-[#111827] border border-slate-800/80 rounded-xl p-4 sm:p-5 relative overflow-hidden shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-400 tracking-wider uppercase">
+          <span>Pending</span>
+          <i data-lucide="hourglass" class="w-4 h-4 text-amber-400"></i>
+        </div>
+        <div class="mt-3 text-3xl font-extrabold text-amber-400" id="statPending">0</div>
+        <div class="mt-2 text-[11px] text-slate-400">Awaiting completion</div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-400"></div>
+      </div>
+
+      <!-- High Priority Tasks -->
+      <div class="bg-[#111827] border border-slate-800/80 rounded-xl p-4 sm:p-5 relative overflow-hidden shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-400 tracking-wider uppercase">
+          <span>High Priority</span>
+          <i data-lucide="flame" class="w-4 h-4 text-rose-400"></i>
+        </div>
+        <div class="mt-3 text-3xl font-extrabold text-rose-400" id="statHigh">0</div>
+        <div class="mt-2 text-[11px] text-slate-400">Require immediate focus</div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-pink-500"></div>
+      </div>
+    </section>
+
+    <!-- 2. SUMMARY PANELS -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Status Summary -->
+      <div class="bg-[#111827] border border-slate-800/80 rounded-xl p-4">
+        <div class="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">
+          <i data-lucide="pie-chart" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span>Status Summary</span>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <button onclick="setFilterStatus('pending')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-2 transition">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span class="text-slate-300">Pending</span>
+            <span id="badgePendingCount" class="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold text-[11px]">0</span>
+          </button>
+          <button onclick="setFilterStatus('completed')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-2 transition">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-slate-300">Completed</span>
+            <span id="badgeCompletedCount" class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[11px]">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Priority Summary -->
+      <div class="bg-[#111827] border border-slate-800/80 rounded-xl p-4">
+        <div class="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">
+          <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-purple-400"></i>
+          <span>Priority Summary</span>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <button onclick="setFilterPriority('high')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-2 transition">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span class="text-slate-300">High Priority</span>
+            <span id="badgeHighCount" class="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold text-[11px]">0</span>
+          </button>
+          <button onclick="setFilterPriority('medium')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-2 transition">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span class="text-slate-300">Medium Priority</span>
+            <span id="badgeMediumCount" class="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold text-[11px]">0</span>
+          </button>
+          <button onclick="setFilterPriority('low')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-2 transition">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="text-slate-300">Low Priority</span>
+            <span id="badgeLowCount" class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[11px]">0</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. FILTER & SEARCH CONTROL BAR -->
+    <section class="bg-[#111827] border border-slate-800/80 rounded-xl p-4 space-y-3 shadow-sm">
+      <!-- Tabs -->
+      <div class="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+        <button id="tabAll" onclick="selectTab('all')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-sm transition">
+          All Tasks <span id="tabCountAll" class="ml-1 opacity-80">(0)</span>
+        </button>
+        <button id="tabPending" onclick="selectTab('pending')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800 transition">
+          Pending <span id="tabCountPending" class="ml-1 opacity-80">(0)</span>
+        </button>
+        <button id="tabCompleted" onclick="selectTab('completed')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800 transition">
+          Completed <span id="tabCountCompleted" class="ml-1 opacity-80">(0)</span>
+        </button>
+        <button id="tabDueToday" onclick="selectTab('dueToday')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800 transition">
+          Due Soon <span id="tabCountDueToday" class="ml-1 opacity-80">(0)</span>
+        </button>
+      </div>
+
+      <!-- Search & Select Dropdowns -->
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+        <!-- Search input -->
+        <div class="sm:col-span-5 relative">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input type="text" id="searchInput" placeholder="Search tasks by title or description..." class="w-full bg-[#1E293B] border border-slate-700/80 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+        </div>
+
+        <!-- Status Filter -->
+        <div class="sm:col-span-3">
+          <select id="statusFilter" class="w-full bg-[#1E293B] border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+
+        <!-- Priority Filter -->
+        <div class="sm:col-span-2">
+          <select id="priorityFilter" class="w-full bg-[#1E293B] border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+            <option value="">All Priorities</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+
+        <!-- Reset Button -->
+        <div class="sm:col-span-2">
+          <button id="resetFiltersBtn" class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            <span>Reset Filters</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. TASKS GRID -->
+    <section>
+      <!-- Task Cards Container -->
+      <div id="tasksGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Rendered via JavaScript -->
+      </div>
+
+      <!-- Empty State View -->
+      <div id="emptyState" class="hidden flex-col items-center justify-center py-16 px-4 text-center bg-[#111827]/60 border border-slate-800/80 rounded-xl">
+        <div class="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
+          <i data-lucide="inbox" class="w-7 h-7"></i>
+        </div>
+        <h3 class="text-sm font-semibold text-slate-200">No tasks found</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-sm">There are no tasks matching your current filters. Create a new task or adjust your filters above.</p>
+        <button onclick="document.getElementById('openCreateModalBtn').click()" class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Create Task Now</span>
+        </button>
+      </div>
+
+      <!-- Loading State View -->
+      <div id="loadingState" class="flex flex-col items-center justify-center py-16 text-center">
+        <div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+        <p class="text-xs text-slate-400">Loading tasks from REST API...</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= CREATE / EDIT MODAL ================= -->
+  <div id="taskModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#111827] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+            <i id="modalIcon" data-lucide="plus-circle" class="w-4 h-4"></i>
+          </div>
+          <h3 id="modalTitle" class="text-sm font-bold text-white">Create New Task</h3>
+        </div>
+        <button id="closeModalBtn" class="text-slate-400 hover:text-white transition p-1 rounded-md hover:bg-slate-800">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Modal Form -->
+      <form id="taskForm" class="p-6 space-y-4">
+        <input type="hidden" id="editTaskId" value="">
+
+        <!-- Title Field -->
+        <div>
+          <div class="flex items-center justify-between text-xs font-medium text-slate-300 mb-1.5">
+            <label for="formTitle">Title <span class="text-rose-400">*</span></label>
+            <span id="titleCounter" class="text-[10px] text-slate-400">0/100</span>
+          </div>
+          <input type="text" id="formTitle" required minlength="3" maxlength="100" placeholder="e.g. Build REST API project" class="w-full bg-[#1E293B] border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+          <p class="text-[10px] text-slate-400 mt-1">Must be between 3 and 100 characters.</p>
+        </div>
+
+        <!-- Description Field -->
+        <div>
+          <div class="flex items-center justify-between text-xs font-medium text-slate-300 mb-1.5">
+            <label for="formDesc">Description</label>
+            <span id="descCounter" class="text-[10px] text-slate-400">0/500</span>
+          </div>
+          <textarea id="formDesc" rows="3" maxlength="500" placeholder="Optional details, notes, or instructions..." class="w-full bg-[#1E293B] border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition custom-scrollbar"></textarea>
+        </div>
+
+        <!-- Priority & Due Date -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="formPriority" class="block text-xs font-medium text-slate-300 mb-1.5">Priority</label>
+            <select id="formPriority" class="w-full bg-[#1E293B] border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="formDueDate" class="block text-xs font-medium text-slate-300 mb-1.5">Due Date</label>
+            <input type="date" id="formDueDate" class="w-full bg-[#1E293B] border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <!-- Form Error Box -->
+        <div id="formErrorBox" class="hidden p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs"></div>
+
+        <!-- Modal Footer Buttons -->
+        <div class="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+          <button type="button" id="cancelModalBtn" class="px-4 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+            Cancel
+          </button>
+          <button type="submit" id="submitModalBtn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span id="submitBtnText">Save Task</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= RENAME APP MODAL ================= -->
+  <div id="renameModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#111827] border border-slate-800 rounded-2xl w-full max-w-sm shadow-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-white">Customize Application Title</h3>
+        <button id="closeRenameModalBtn" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-300 mb-1">Application Name</label>
+        <input type="text" id="renameInput" value="TaskFlow" class="w-full bg-[#1E293B] border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+        <button id="cancelRenameBtn" class="px-3 py-1.5 text-xs text-slate-300 bg-slate-800 rounded-lg">Cancel</button>
+        <button id="saveRenameBtn" class="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- ================= JAVASCRIPT APPLICATION LOGIC ================= -->
+  <script>
+    // State
+    let allTasks = [];
+    let currentTab = 'all';
+
+    // Elements
+    const tasksGrid = document.getElementById('tasksGrid');
+    const emptyState = document.getElementById('emptyState');
+    const loadingState = document.getElementById('loadingState');
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const priorityFilter = document.getElementById('priorityFilter');
+    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+
+    // Modals
+    const taskModal = document.getElementById('taskModal');
+    const openCreateModalBtn = document.getElementById('openCreateModalBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const taskForm = document.getElementById('taskForm');
+    const formTitle = document.getElementById('formTitle');
+    const formDesc = document.getElementById('formDesc');
+    const formPriority = document.getElementById('formPriority');
+    const formDueDate = document.getElementById('formDueDate');
+    const editTaskId = document.getElementById('editTaskId');
+    const modalTitle = document.getElementById('modalTitle');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const formErrorBox = document.getElementById('formErrorBox');
+    const titleCounter = document.getElementById('titleCounter');
+    const descCounter = document.getElementById('descCounter');
+
+    // Rename Elements
+    const renameAppBtn = document.getElementById('renameAppBtn');
+    const renameModal = document.getElementById('renameModal');
+    const closeRenameModalBtn = document.getElementById('closeRenameModalBtn');
+    const cancelRenameBtn = document.getElementById('cancelRenameBtn');
+    const saveRenameBtn = document.getElementById('saveRenameBtn');
+    const renameInput = document.getElementById('renameInput');
+    const appHeaderTitle = document.getElementById('appHeaderTitle');
+
+    // Load custom app name if saved in localStorage
+    const savedAppName = localStorage.getItem('taskflow_app_name');
+    if (savedAppName) {
+      appHeaderTitle.textContent = savedAppName;
+      renameInput.value = savedAppName;
+      document.title = `${savedAppName} — Task Management & Productivity REST API`;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      fetchHealth();
+      fetchTasks();
+    });
+
+    // Check API Health
+    async function fetchHealth() {
+      try {
+        const res = await fetch('/health');
+        if (res.ok) {
+          document.getElementById('apiStatusBadge').innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> API Online
+          `;
+        }
+      } catch (err) {
+        document.getElementById('apiStatusBadge').innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> API Offline
+        `;
+        document.getElementById('apiStatusBadge').className = "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20";
+      }
+    }
+
+    // Fetch All Tasks from REST API
+    async function fetchTasks() {
+      try {
+        loadingState.classList.remove('hidden');
+        tasksGrid.classList.add('hidden');
+        emptyState.classList.add('hidden');
+
+        const res = await fetch('/tasks?skip=0&limit=100');
+        if (!res.ok) throw new Error('Failed to load tasks');
+        allTasks = await res.json();
+
+        updateMetricsAndSummaries();
+        renderFilteredTasks();
+      } catch (err) {
+        showToast('Error loading tasks: ' + err.message, 'error');
+      } finally {
+        loadingState.classList.add('hidden');
+        tasksGrid.classList.remove('hidden');
+      }
+    }
+
+    // Update Top Counters & Summaries
+    function updateMetricsAndSummaries() {
+      const total = allTasks.length;
+      const completed = allTasks.filter(t => t.status === 'completed').length;
+      const pending = allTasks.filter(t => t.status === 'pending').length;
+      const high = allTasks.filter(t => t.priority === 'high').length;
+      const medium = allTasks.filter(t => t.priority === 'medium').length;
+      const low = allTasks.filter(t => t.priority === 'low').length;
+
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statCompleted').textContent = completed;
+      document.getElementById('statPending').textContent = pending;
+      document.getElementById('statHigh').textContent = high;
+
+      const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+      document.getElementById('statCompletedSub').textContent = `${rate}% completion rate`;
+
+      // Badges
+      document.getElementById('badgePendingCount').textContent = pending;
+      document.getElementById('badgeCompletedCount').textContent = completed;
+      document.getElementById('badgeHighCount').textContent = high;
+      document.getElementById('badgeMediumCount').textContent = medium;
+      document.getElementById('badgeLowCount').textContent = low;
+
+      // Tab Counters
+      document.getElementById('tabCountAll').textContent = `(${total})`;
+      document.getElementById('tabCountPending').textContent = `(${pending})`;
+      document.getElementById('tabCountCompleted').textContent = `(${completed})`;
+
+      // Due soon (tasks with due_date)
+      const dueCount = allTasks.filter(t => t.due_date && t.status === 'pending').length;
+      document.getElementById('tabCountDueToday').textContent = `(${dueCount})`;
+    }
+
+    // Filter and Render Tasks
+    function renderFilteredTasks() {
+      let filtered = [...allTasks];
+      const search = searchInput.value.trim().toLowerCase();
+      const status = statusFilter.value;
+      const priority = priorityFilter.value;
+
+      // Tab filter
+      if (currentTab === 'pending') {
+        filtered = filtered.filter(t => t.status === 'pending');
+      } else if (currentTab === 'completed') {
+        filtered = filtered.filter(t => t.status === 'completed');
+      } else if (currentTab === 'dueToday') {
+        filtered = filtered.filter(t => t.due_date && t.status === 'pending');
+      }
+
+      // Dropdown filters
+      if (status) {
+        filtered = filtered.filter(t => t.status === status);
+      }
+      if (priority) {
+        filtered = filtered.filter(t => t.priority === priority);
+      }
+
+      // Search filter
+      if (search) {
+        filtered = filtered.filter(t => 
+          (t.title && t.title.toLowerCase().includes(search)) ||
+          (t.description && t.description.toLowerCase().includes(search))
+        );
+      }
+
+      tasksGrid.innerHTML = '';
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+        tasksGrid.classList.add('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+        tasksGrid.classList.remove('hidden');
+
+        filtered.forEach(task => {
+          tasksGrid.appendChild(createTaskCard(task));
+        });
+      }
+
+      lucide.createIcons();
+    }
+
+    // Generate Task Card Element
+    function createTaskCard(task) {
+      const card = document.createElement('div');
+      card.className = "bg-[#111827] border border-slate-800/90 hover:border-slate-700 rounded-xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-lg hover:shadow-black/40 group";
+
+      // Priority Styling
+      const priorityStyles = {
+        high: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+        medium: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+        low: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+      };
+
+      // Status Styling
+      const isCompleted = task.status === 'completed';
+      const statusBadge = isCompleted 
+        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i data-lucide="check" class="w-3 h-3"></i> COMPLETED</span>`
+        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30"><i data-lucide="clock" class="w-3 h-3"></i> PENDING</span>`;
+
+      card.innerHTML = `
+        <div>
+          <!-- Badges & Action -->
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${priorityStyles[task.priority] || priorityStyles.medium}">
+                ${task.priority}
+              </span>
+              ${statusBadge}
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono">#${task.id}</span>
+          </div>
+
+          <!-- Title -->
+          <h4 class="text-sm font-semibold text-white tracking-tight ${isCompleted ? 'line-through text-slate-400' : ''}">
+            ${escapeHtml(task.title)}
+          </h4>
+
+          <!-- Description -->
+          <p class="text-xs text-slate-400 mt-1.5 line-clamp-3 leading-relaxed">
+            ${task.description ? escapeHtml(task.description) : '<span class="text-slate-600 italic">No description provided</span>'}
+          </p>
+        </div>
+
+        <!-- Footer: Due Date & Actions -->
+        <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <div class="flex items-center gap-1.5 text-[11px] text-slate-400">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-500"></i>
+            <span>${task.due_date ? task.due_date : 'No deadline'}</span>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center gap-1.5">
+            ${!isCompleted ? `
+              <button onclick="completeTask(${task.id})" title="Mark as Completed" class="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+              </button>
+            ` : ''}
+
+            <button onclick="openEditModal(${task.id})" title="Edit Task" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
+
+            <button onclick="deleteTask(${task.id})" title="Delete Task" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Modal Operations
+    openCreateModalBtn.addEventListener('click', () => {
+      editTaskId.value = '';
+      taskForm.reset();
+      modalTitle.textContent = 'Create New Task';
+      submitBtnText.textContent = 'Create Task';
+      formErrorBox.classList.add('hidden');
+      formPriority.value = 'medium';
+      updateCounters();
+      taskModal.classList.remove('hidden');
+    });
+
+    function closeModal() {
+      taskModal.classList.add('hidden');
+      formErrorBox.classList.add('hidden');
+    }
+
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelModalBtn.addEventListener('click', closeModal);
+
+    // Live Input Counters
+    formTitle.addEventListener('input', updateCounters);
+    formDesc.addEventListener('input', updateCounters);
+
+    function updateCounters() {
+      titleCounter.textContent = `${formTitle.value.length}/100`;
+      descCounter.textContent = `${formDesc.value.length}/500`;
+    }
+
+    // Form Submit (POST /tasks or PATCH /tasks/{id})
+    taskForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      formErrorBox.classList.add('hidden');
+
+      const id = editTaskId.value;
+      const isEdit = Boolean(id);
+
+      const payload = {
+        title: formTitle.value.trim(),
+        description: formDesc.value.trim() || null,
+        priority: formPriority.value,
+        due_date: formDueDate.value || null,
+      };
+
+      try {
+        const url = isEdit ? `/tasks/${id}` : '/tasks';
+        const method = isEdit ? 'PATCH' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          let errDetail = 'Request failed';
+          if (Array.isArray(data.detail)) {
+            errDetail = data.detail.map(d => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+          } else if (typeof data.detail === 'string') {
+            errDetail = data.detail;
+          }
+          formErrorBox.textContent = errDetail;
+          formErrorBox.classList.remove('hidden');
+          return;
+        }
+
+        closeModal();
+        showToast(isEdit ? 'Task updated successfully' : 'Task created successfully', 'success');
+        fetchTasks();
+      } catch (err) {
+        formErrorBox.textContent = err.message;
+        formErrorBox.classList.remove('hidden');
+      }
+    });
+
+    // Open Edit Modal
+    window.openEditModal = function(id) {
+      const task = allTasks.find(t => t.id === id);
+      if (!task) return;
+
+      editTaskId.value = task.id;
+      formTitle.value = task.title;
+      formDesc.value = task.description || '';
+      formPriority.value = task.priority;
+      formDueDate.value = task.due_date || '';
+
+      modalTitle.textContent = `Edit Task #${task.id}`;
+      submitBtnText.textContent = 'Save Changes';
+      formErrorBox.classList.add('hidden');
+      updateCounters();
+      taskModal.classList.remove('hidden');
+    };
+
+    // Complete Task (PATCH /tasks/{id}/complete)
+    window.completeTask = async function(id) {
+      try {
+        const res = await fetch(`/tasks/${id}/complete`, { method: 'PATCH' });
+        if (!res.ok) throw new Error('Failed to complete task');
+        showToast(`Task #${id} marked as completed!`, 'success');
+        fetchTasks();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+
+    // Delete Task (DELETE /tasks/{id})
+    window.deleteTask = async function(id) {
+      if (!confirm(`Are you sure you want to delete task #${id}?`)) return;
+
+      try {
+        const res = await fetch(`/tasks/${id}`, { method: 'DELETE' });
+        if (res.status === 204 || res.ok) {
+          showToast(`Task #${id} deleted`, 'success');
+          fetchTasks();
+        } else {
+          const errData = await res.json();
+          throw new Error(errData.detail || 'Delete failed');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+
+    // Tabs & Filters
+    window.selectTab = function(tab) {
+      currentTab = tab;
+      ['tabAll', 'tabPending', 'tabCompleted', 'tabDueToday'].forEach(t => {
+        const el = document.getElementById(t);
+        el.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800 transition";
+      });
+
+      const activeMap = {
+        all: 'tabAll',
+        pending: 'tabPending',
+        completed: 'tabCompleted',
+        dueToday: 'tabDueToday'
+      };
+      document.getElementById(activeMap[tab]).className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-sm transition";
+      renderFilteredTasks();
+    };
+
+    window.setFilterStatus = function(val) {
+      statusFilter.value = val;
+      renderFilteredTasks();
+    };
+
+    window.setFilterPriority = function(val) {
+      priorityFilter.value = val;
+      renderFilteredTasks();
+    };
+
+    searchInput.addEventListener('input', renderFilteredTasks);
+    statusFilter.addEventListener('change', renderFilteredTasks);
+    priorityFilter.addEventListener('change', renderFilteredTasks);
+
+    resetFiltersBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      statusFilter.value = '';
+      priorityFilter.value = '';
+      selectTab('all');
+    });
+
+    // Rename App Modal handlers
+    renameAppBtn.addEventListener('click', () => {
+      renameModal.classList.remove('hidden');
+    });
+    closeRenameModalBtn.addEventListener('click', () => renameModal.classList.add('hidden'));
+    cancelRenameBtn.addEventListener('click', () => renameModal.classList.add('hidden'));
+    saveRenameBtn.addEventListener('click', () => {
+      const newName = renameInput.value.trim() || 'TaskFlow';
+      appHeaderTitle.textContent = newName;
+      document.title = `${newName} — Task Management & Productivity REST API`;
+      localStorage.setItem('taskflow_app_name', newName);
+      renameModal.classList.add('hidden');
+      showToast(`App title updated to "${newName}"`, 'success');
+    });
+
+    // Toast Utility
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bg = type === 'error' ? 'bg-rose-600' : 'bg-indigo-600';
+
+      toast.className = `${bg} text-white text-xs px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 pointer-events-auto transform transition-all duration-300 translate-y-2 opacity-0`;
+      toast.innerHTML = `
+        <i data-lucide="${type === 'error' ? 'alert-circle' : 'check-circle-2'}" class="w-4 h-4"></i>
+        <span>${escapeHtml(msg)}</span>
+      `;
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
